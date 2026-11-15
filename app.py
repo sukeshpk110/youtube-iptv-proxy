@@ -1,5 +1,6 @@
 import os
 import subprocess
+import time
 from flask import Flask, redirect, Response, request
 
 app = Flask(__name__)
@@ -19,19 +20,33 @@ CHANNELS = {
     }
 }
 
-def get_live_stream_url(youtube_url):
+# Cache dictionary to store stream URLs and avoid running yt-dlp repeatedly
+STREAM_CACHE = {}
+CACHE_DURATION = 300  # Cache for 5 minutes
+
+def get_live_stream_url(channel_id, youtube_url):
+    current_time = time.time()
+    
+    # Return cached URL if it's still fresh
+    if channel_id in STREAM_CACHE:
+        cached = STREAM_CACHE[channel_id]
+        if current_time - cached["time"] < CACHE_DURATION:
+            return cached["url"]
+            
     try:
         cmd = ["yt-dlp", "--print", "url", "--no-playlist", "--geo-bypass", youtube_url]
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=12)
         if result.returncode == 0:
             urls = result.stdout.strip().splitlines()
             if urls:
-                return urls[0]
+                stream_url = urls[0]
+                # Save to cache
+                STREAM_CACHE[channel_id] = {"url": stream_url, "time": current_time}
+                return stream_url
     except Exception as e:
         print(f"Error: {e}")
     return None
 
-# 1. Master Playlist (All channels)
 @app.route('/playlist.m3u')
 def generate_playlist():
     host = request.host_url.rstrip('/')
@@ -41,7 +56,6 @@ def generate_playlist():
         m3u_content += f"{host}/stream/{key}\n"
     return Response(m3u_content, mimetype='audio/x-mpegurl')
 
-# 2. Individual Channel M3U Link (Single channel playlist)
 @app.route('/channel/<channel_id>.m3u')
 def generate_single_channel_playlist(channel_id):
     if channel_id not in CHANNELS:
@@ -56,13 +70,12 @@ def generate_single_channel_playlist(channel_id):
     
     return Response(m3u_content, mimetype='audio/x-mpegurl')
 
-# 3. Direct Stream Proxy (Redirects to fresh YouTube link)
 @app.route('/stream/<channel_id>')
 def proxy_stream(channel_id):
     if channel_id not in CHANNELS:
         return "Channel not found", 404
     
-    stream_url = get_live_stream_url(CHANNELS[channel_id]["url"])
+    stream_url = get_live_stream_url(channel_id, CHANNELS[channel_id]["url"])
     if stream_url:
         return redirect(stream_url, code=302)
     else:
