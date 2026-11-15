@@ -33,15 +33,15 @@ def get_live_stream_url(channel_id, youtube_url):
             
     try:
         cmd = [
-            "yt-dlp",
-            "--cookies", "cookies.txt",
-            "--extractor-args", "youtube:player_client=web_safari"
-            "-f", "best[protocol^=m3u8]/best",
-            "--print", "url",
-            "--no-playlist",
-            youtube_url
-        ]
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+    "yt-dlp",
+    "--cookies", "cookies.txt",
+    "--extractor-args", "youtube:player_client=mweb",
+    "-f", "best[protocol^=m3u8]/best",
+    "--print", "url",
+    "--no-playlist",
+    youtube_url
+]
+result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
         if result.returncode == 0:
             urls = result.stdout.strip().splitlines()
             if urls:
