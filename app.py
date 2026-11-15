@@ -19,7 +19,7 @@ CHANNELS = {
     },
     "amrita_news": {
         "name": "Amrita News",
-        "url": "https://www.youtube.com/@AmritaNews/live"
+        "url": "https://www.youtube.com/@AmritaTV/live"
     }
 }
 
@@ -33,7 +33,6 @@ def get_live_stream_url(channel_id, youtube_url):
     try:
         cmd = [
             "yt-dlp",
-            "--cookies", "cookies.txt",
             "--extractor-args", "youtube:player_client=android",
             "-f", "best",
             "--print", "url",
@@ -73,19 +72,4 @@ def channel_playlist(channel_id):
     m3u_content = "#EXTM3U\n"
     m3u_content += f'#EXTINF:-1 tvg-id="{channel_id}" tvg-name="{info["name"]}",{info["name"]}\n'
     m3u_content += f'{host}/stream/{channel_id}\n'
-    return Response(m3u_content, mimetype='audio/x-mpegurl')
-
-@app.route('/stream/<channel_id>')
-def proxy_stream(channel_id):
-    if channel_id not in CHANNELS:
-        return "Channel not found", 404
-    
-    stream_url, error_log = get_live_stream_url(channel_id, CHANNELS[channel_id]["url"])
-    if stream_url:
-        return redirect(stream_url, code=302)
-    else:
-        return f"yt-dlp Error: <pre>{error_log}</pre>", 502
-
-if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port)
+    return Response(m3u_content, mimetype='
