@@ -34,11 +34,7 @@ def get_live_stream_url(channel_id, youtube_url):
         'format': 'best',
         'no_playlist': True,
         'quiet': True,
-        'http_headers': {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept-Language': 'en-US,en;q=0.9',
-        },
-        'extractor_args': {'youtube': {'player_client': ['tv', 'web']}}
+        'extractor_args': {'youtube': {'player_client': ['android']}}
     }
 
     try:
