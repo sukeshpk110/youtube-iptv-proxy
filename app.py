@@ -16,6 +16,7 @@ CHANNELS = {
     "amrita_news": {
         "name": "Amrita News",
         "url": "https://www.youtube.com/@AmritaNews/live"
+    }
 }
 
 def get_live_stream_url(youtube_url):
