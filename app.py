@@ -87,6 +87,13 @@ def proxy_stream(channel_id):
     else:
         return "Stream is offline or unavailable.", 502
 
+@app.route('/health')
+def health_check():
+    return "OK", 200
+    
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
+
+
+
