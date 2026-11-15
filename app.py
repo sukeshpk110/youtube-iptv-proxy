@@ -1,12 +1,7 @@
 import os
-import time
 from flask import Flask, Response, redirect, request
-import yt_dlp
 
 app = Flask(__name__)
-
-STREAM_CACHE = {}
-CACHE_DURATION = 300  # 5-minute in-memory stream URL cache
 
 CHANNELS = {
     "keralavision_news": {
@@ -22,35 +17,6 @@ CHANNELS = {
         "url": "https://www.youtube.com/@AmritaTV/live"
     }
 }
-
-def get_live_stream_url(channel_id, youtube_url):
-    current_time = time.time()
-    if channel_id in STREAM_CACHE:
-        cached = STREAM_CACHE[channel_id]
-        if current_time - cached["time"] < CACHE_DURATION:
-            return cached["url"], None
-
-    ydl_opts = {
-        'format': 'best',
-        'no_playlist': True,
-        'quiet': True,
-        'extractor_args': {'youtube': {'player_client': ['mweb']}}
-    }
-
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(youtube_url, download=False)
-            if 'url' in info:
-                stream_url = info['url']
-                STREAM_CACHE[channel_id] = {"url": stream_url, "time": current_time}
-                return stream_url, None
-            elif 'requested_formats' in info:
-                stream_url = info['requested_formats'][0]['url']
-                STREAM_CACHE[channel_id] = {"url": stream_url, "time": current_time}
-                return stream_url, None
-        return None, "Could not extract stream URL."
-    except Exception as e:
-        return None, str(e)
 
 @app.route('/health')
 def health_check():
@@ -81,11 +47,9 @@ def proxy_stream(channel_id):
     if channel_id not in CHANNELS:
         return "Channel not found", 404
     
-    stream_url, error_log = get_live_stream_url(channel_id, CHANNELS[channel_id]["url"])
-    if stream_url:
-        return redirect(stream_url, code=302)
-    else:
-        return f"Extraction Error: <pre>{error_log}</pre>", 502
+    # Redirect directly to the live YouTube watch page or embed stream
+    live_page = CHANNELS[channel_id]["url"]
+    return redirect(live_page, code=302)
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
