@@ -6,7 +6,7 @@ from flask import Flask, Response, redirect, request
 app = Flask(__name__)
 
 STREAM_CACHE = {}
-CACHE_DURATION = 300  # 5 minutes
+CACHE_DURATION = 300  # 5-minute in-memory stream URL cache
 
 CHANNELS = {
     "keralavision_news": {
@@ -28,28 +28,27 @@ def get_live_stream_url(channel_id, youtube_url):
     if channel_id in STREAM_CACHE:
         cached = STREAM_CACHE[channel_id]
         if current_time - cached["time"] < CACHE_DURATION:
-            return cached["url"]
+            return cached["url"], None
 
     try:
         cmd = [
             "yt-dlp",
             "--cookies", "cookies.txt",
-            "--extractor-args", "youtube:player_client=android",
-            "-g",
+            "-f", "best[protocol^=m3u8]/best",
+            "--print", "url",
             "--no-playlist",
             youtube_url
         ]
-        
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
         if result.returncode == 0:
             urls = result.stdout.strip().splitlines()
             if urls:
                 stream_url = urls[0]
                 STREAM_CACHE[channel_id] = {"url": stream_url, "time": current_time}
-                return stream_url
+                return stream_url, None
+        return None, result.stderr
     except Exception as e:
-        print(f"Exception for {channel_id}: {e}")
-    return None
+        return None, str(e)
 
 @app.route('/health')
 def health_check():
@@ -80,11 +79,11 @@ def proxy_stream(channel_id):
     if channel_id not in CHANNELS:
         return "Channel not found", 404
     
-    stream_url = get_live_stream_url(channel_id, CHANNELS[channel_id]["url"])
+    stream_url, error_log = get_live_stream_url(channel_id, CHANNELS[channel_id]["url"])
     if stream_url:
         return redirect(stream_url, code=302)
     else:
-        return "Stream is offline or unavailable.", 502
+        return f"yt-dlp Error: <pre>{error_log}</pre>", 502
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
