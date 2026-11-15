@@ -1,7 +1,7 @@
 import os
 import time
 from flask import Flask, Response, redirect, request
-import streamlink
+import yt_dlp
 
 app = Flask(__name__)
 
@@ -30,13 +30,25 @@ def get_live_stream_url(channel_id, youtube_url):
         if current_time - cached["time"] < CACHE_DURATION:
             return cached["url"], None
 
+    ydl_opts = {
+        'format': 'best',
+        'no_playlist': True,
+        'quiet': True,
+        'extractor_args': {'youtube': {'player_client': ['android']}}
+    }
+
     try:
-        streams = streamlink.streams(youtube_url)
-        if streams and "best" in streams:
-            stream_url = streams["best"].url
-            STREAM_CACHE[channel_id] = {"url": stream_url, "time": current_time}
-            return stream_url, None
-        return None, "No streams found via Streamlink."
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(youtube_url, download=False)
+            if 'url' in info:
+                stream_url = info['url']
+                STREAM_CACHE[channel_id] = {"url": stream_url, "time": current_time}
+                return stream_url, None
+            elif 'requested_formats' in info:
+                stream_url = info['requested_formats'][0]['url']
+                STREAM_CACHE[channel_id] = {"url": stream_url, "time": current_time}
+                return stream_url, None
+        return None, "Could not extract stream URL."
     except Exception as e:
         return None, str(e)
 
@@ -73,7 +85,7 @@ def proxy_stream(channel_id):
     if stream_url:
         return redirect(stream_url, code=302)
     else:
-        return f"Streamlink Error: <pre>{error_log}</pre>", 502
+        return f"Extraction Error: <pre>{error_log}</pre>", 502
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
