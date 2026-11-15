@@ -15,11 +15,11 @@ CHANNELS = {
     },
     "kannurvision_news": {
         "name": "Kannur Vision News",
-        "url": "https://www.youtube.com/@zealtvkannur/live"
+        "url": "https://www.youtube.com/@KannurVisionOnlinenews/live"
     },
     "amrita_news": {
         "name": "Amrita News",
-        "url": "https://www.youtube.com/@AmritaTV/live"
+        "url": "https://www.youtube.com/@AmritaNews/live"
     }
 }
 
@@ -33,6 +33,7 @@ def get_live_stream_url(channel_id, youtube_url):
     try:
         cmd = [
             "yt-dlp",
+            "--cookies", "cookies.txt",
             "--extractor-args", "youtube:player_client=android",
             "-f", "best",
             "--print", "url",
