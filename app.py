@@ -1,7 +1,8 @@
 import os
 import time
-from flask import Flask, Response, redirect, request
+from flask import Flask, Response, stream_with_context, request
 import yt_dlp
+import requests
 
 app = Flask(__name__)
 
@@ -31,7 +32,7 @@ def get_live_stream_url(channel_id, youtube_url):
             return cached["url"], None
 
     ydl_opts = {
-        'format': 'best[protocol^=m3u8]/best',
+        'format': 'best',
         'no_playlist': True,
         'quiet': True,
         'cookiefile': 'cookies.txt',
@@ -47,15 +48,8 @@ def get_live_stream_url(channel_id, youtube_url):
                 stream_url = info['url']
                 STREAM_CACHE[channel_id] = {"url": stream_url, "time": current_time}
                 return stream_url, None
-            elif 'formats' in info:
-                # Find best HLS / m3u8 format
-                for f in info['formats']:
-                    if f.get('protocol') == 'm3u8_native' or 'm3u8' in f.get('url', ''):
-                        stream_url = f['url']
-                        STREAM_CACHE[channel_id] = {"url": stream_url, "time": current_time}
-                        return stream_url, None
-                # Fallback to first available format URL
-                stream_url = info['formats'][-1]['url']
+            elif 'requested_formats' in info:
+                stream_url = info['requested_formats'][0]['url']
                 STREAM_CACHE[channel_id] = {"url": stream_url, "time": current_time}
                 return stream_url, None
         return None, "Could not extract stream URL."
@@ -92,10 +86,20 @@ def proxy_stream(channel_id):
         return "Channel not found", 404
     
     stream_url, error_log = get_live_stream_url(channel_id, CHANNELS[channel_id]["url"])
-    if stream_url:
-        return redirect(stream_url, code=302)
-    else:
+    if not stream_url:
         return f"Extraction Error: <pre>{error_log}</pre>", 502
+
+    def generate():
+        try:
+            # Stream the video chunks through Flask proxy
+            req = requests.get(stream_url, stream=True, timeout=15)
+            for chunk in req.iter_content(chunk_size=8192):
+                if chunk:
+                    yield chunk
+        except Exception:
+            pass
+
+    return Response(stream_with_context(generate()), mimetype='video/mp4')
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
