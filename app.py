@@ -1,8 +1,7 @@
 import os
 import time
-from flask import Flask, Response, stream_with_context, request
+from flask import Flask, Response, redirect, request
 import yt_dlp
-import requests
 
 app = Flask(__name__)
 
@@ -20,7 +19,7 @@ CHANNELS = {
     },
     "amrita_news": {
         "name": "Amrita News",
-        "url": "https://www.youtube.com/@Amritanews/live"
+        "url": "https://www.youtube.com/@AmritaTV/live"
     }
 }
 
@@ -35,10 +34,7 @@ def get_live_stream_url(channel_id, youtube_url):
         'format': 'best',
         'no_playlist': True,
         'quiet': True,
-        'cookiefile': 'cookies.txt',
-        'http_headers': {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        }
+        'extractor_args': {'youtube': {'player_client': ['mweb']}}
     }
 
     try:
@@ -86,20 +82,10 @@ def proxy_stream(channel_id):
         return "Channel not found", 404
     
     stream_url, error_log = get_live_stream_url(channel_id, CHANNELS[channel_id]["url"])
-    if not stream_url:
+    if stream_url:
+        return redirect(stream_url, code=302)
+    else:
         return f"Extraction Error: <pre>{error_log}</pre>", 502
-
-    def generate():
-        try:
-            # Stream the video chunks through Flask proxy
-            req = requests.get(stream_url, stream=True, timeout=15)
-            for chunk in req.iter_content(chunk_size=8192):
-                if chunk:
-                    yield chunk
-        except Exception:
-            pass
-
-    return Response(stream_with_context(generate()), mimetype='video/mp4')
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
