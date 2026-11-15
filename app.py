@@ -1,7 +1,7 @@
 import os
-import subprocess
 import time
 from flask import Flask, Response, redirect, request
+import streamlink
 
 app = Flask(__name__)
 
@@ -31,22 +31,12 @@ def get_live_stream_url(channel_id, youtube_url):
             return cached["url"], None
 
     try:
-        cmd = [
-            "yt-dlp",
-            "--extractor-args", "youtube:player_client=android",
-            "-f", "best",
-            "--print", "url",
-            "--no-playlist",
-            youtube_url
-        ]
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
-        if result.returncode == 0:
-            urls = result.stdout.strip().splitlines()
-            if urls:
-                stream_url = urls[0]
-                STREAM_CACHE[channel_id] = {"url": stream_url, "time": current_time}
-                return stream_url, None
-        return None, result.stderr
+        streams = streamlink.streams(youtube_url)
+        if streams and "best" in streams:
+            stream_url = streams["best"].url
+            STREAM_CACHE[channel_id] = {"url": stream_url, "time": current_time}
+            return stream_url, None
+        return None, "No streams found via Streamlink."
     except Exception as e:
         return None, str(e)
 
@@ -83,7 +73,7 @@ def proxy_stream(channel_id):
     if stream_url:
         return redirect(stream_url, code=302)
     else:
-        return f"yt-dlp Error: <pre>{error_log}</pre>", 502
+        return f"Streamlink Error: <pre>{error_log}</pre>", 502
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
