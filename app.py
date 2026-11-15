@@ -33,8 +33,9 @@ def get_live_stream_url(channel_id, youtube_url):
     try:
         cmd = [
             "yt-dlp",
-            "--extractor-args", "youtube:player_client=android",
-            "-f", "best",
+            "--cookies", "cookies.txt",
+            "--extractor-args", "youtube:player_client=web",
+            "-f", "best[protocol^=m3u8]/best",
             "--print", "url",
             "--no-playlist",
             youtube_url
