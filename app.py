@@ -19,7 +19,7 @@ CHANNELS = {
     },
     "amrita_news": {
         "name": "Amrita News",
-        "url": "https://www.youtube.com/@AmritaTV/live"
+        "url": "https://www.youtube.com/@Amritanews/live"
     }
 }
 
@@ -31,7 +31,7 @@ def get_live_stream_url(channel_id, youtube_url):
             return cached["url"], None
 
     ydl_opts = {
-        'format': 'best',
+        'format': 'best[protocol^=m3u8]/best',
         'no_playlist': True,
         'quiet': True,
         'cookiefile': 'cookies.txt',
@@ -47,8 +47,15 @@ def get_live_stream_url(channel_id, youtube_url):
                 stream_url = info['url']
                 STREAM_CACHE[channel_id] = {"url": stream_url, "time": current_time}
                 return stream_url, None
-            elif 'requested_formats' in info:
-                stream_url = info['requested_formats'][0]['url']
+            elif 'formats' in info:
+                # Find best HLS / m3u8 format
+                for f in info['formats']:
+                    if f.get('protocol') == 'm3u8_native' or 'm3u8' in f.get('url', ''):
+                        stream_url = f['url']
+                        STREAM_CACHE[channel_id] = {"url": stream_url, "time": current_time}
+                        return stream_url, None
+                # Fallback to first available format URL
+                stream_url = info['formats'][-1]['url']
                 STREAM_CACHE[channel_id] = {"url": stream_url, "time": current_time}
                 return stream_url, None
         return None, "Could not extract stream URL."
